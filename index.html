@@ -246,6 +246,53 @@
     body{padding:14px;}
   }
 
+
+  /* ===== TAB NAVIGATION ===== */
+  .tab-nav {
+    display: flex;
+    border-bottom: 2.5px solid var(--ink);
+    margin-bottom: 22px;
+    gap: 0;
+  }
+  .tab-btn {
+    padding: 10px 22px;
+    background: none;
+    border: none;
+    font-family: var(--serif);
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--muted);
+    cursor: pointer;
+    border-bottom: 3px solid transparent;
+    margin-bottom: -2.5px;
+    transition: color .15s;
+    letter-spacing: -0.01em;
+  }
+  .tab-btn.active {
+    color: var(--ink);
+    border-bottom-color: var(--accent);
+  }
+  .tab-btn:hover { color: var(--ink); }
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  /* ===== PRODUCT SEARCH TAB ===== */
+  .search-grid { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+  .search-grid .field { flex: 1; min-width: 140px; }
+  .product-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .product-tag {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: var(--accent-soft); border: 1px solid var(--accent);
+    border-radius: 14px; padding: 4px 10px 4px 12px;
+    font-size: 12px; font-family: var(--mono); color: var(--accent);
+  }
+  .product-tag button { background: none; border: none; color: var(--accent); cursor: pointer; font-size: 15px; line-height: 1; padding: 0; }
+  .search-input-row { display: flex; gap: 8px; align-items: center; }
+  .search-input-row input { flex: 1; }
+  #psStatus { margin-top: 10px; }
+  #psResults { margin-top: 16px; }
+  .no-results { text-align: center; padding: 32px; color: var(--muted); font-family: var(--mono); font-size: 13px; }
+
   /* ===== MOBILE RESPONSIVE ===== */
   @media (max-width: 640px) {
     body { padding: 10px; font-size: 11px; }
@@ -323,6 +370,15 @@
     </div>
     <div class="tag" id="dateTag"></div>
   </div>
+
+  <!-- TAB NAVIGATION -->
+  <div class="tab-nav">
+    <button class="tab-btn active" data-tab="reportTab">📊 Full Report</button>
+    <button class="tab-btn" data-tab="searchTab">🔍 Product Search</button>
+  </div>
+
+  <!-- TAB 1: FULL REPORT -->
+  <div class="tab-panel active" id="reportTab">
 
   <!-- STEP 1: Upload -->
   <div class="card">
@@ -431,6 +487,64 @@
       </div>
     </div>
   </div>
+
+  </div><!-- /reportTab -->
+
+  <!-- TAB 2: PRODUCT SEARCH -->
+  <div class="tab-panel" id="searchTab">
+    <div class="card">
+      <h2><span class="step-num">1</span> PDF আপলোড করুন</h2>
+      <p style="font-size:12px;color:var(--muted);margin-bottom:10px;">Full Report tab এ PDF আগে লোড করা থাকলে এখানে automatically available হবে।</p>
+      <div id="psFileStatus" class="status">Full Report tab এ প্রথমে PDF লোড করুন।</div>
+    </div>
+
+    <div class="card">
+      <h2><span class="step-num">2</span> Group ও Territory নির্বাচন করুন</h2>
+      <div class="search-grid">
+        <div class="field">
+          <label for="psGroupSelect">Group</label>
+          <select id="psGroupSelect" disabled><option value="">PDF লোড করুন প্রথমে</option></select>
+        </div>
+        <div class="field">
+          <label for="psTerrSelect">Territory ID</label>
+          <select id="psTerrSelect" disabled><option value="">—</option></select>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2><span class="step-num">3</span> Product নাম লিখুন</h2>
+      <div class="search-input-row">
+        <input type="text" id="psProductInput" placeholder="যেমন: Lopirel, Maxsulin, Menaril..." disabled>
+        <button class="btn btn-secondary btn-small" id="psAddProductBtn" disabled>+ Add</button>
+      </div>
+      <div class="product-tags" id="psProductTags"></div>
+      <p style="font-size:11px;color:var(--muted);margin-top:8px;font-family:var(--mono);">একাধিক product add করতে পারবেন। প্রতিটা আলাদা color এ দেখাবে।</p>
+
+      <div style="margin-top:12px;">
+        <label style="display:flex;align-items:center;gap:8px;font-size:12px;cursor:pointer;">
+          <input type="checkbox" id="psExcludeZero" style="width:auto;" checked>
+          Zero-value items বাদ দিন
+        </label>
+        <label style="display:flex;align-items:center;gap:8px;font-size:12px;cursor:pointer;margin-top:6px;">
+          <input type="checkbox" id="psShowAllVariants" style="width:auto;" checked>
+          সব variants দেখাও (partial match)
+        </label>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2><span class="step-num">4</span> Search করুন</h2>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <button class="btn" id="psSearchBtn" disabled>🔍 Search করুন</button>
+        <button class="btn btn-secondary" id="psClearBtn">✕ Reset</button>
+      </div>
+      <div class="status" id="psStatus"></div>
+    </div>
+
+    <!-- Search Results -->
+    <div id="psResults"></div>
+  </div><!-- /searchTab -->
 
   <div class="footer-note">সব processing আপনার browser-এ হয় — কোনো ডাটা আপলোড হয় না।</div>
 </div>

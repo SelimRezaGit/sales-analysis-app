@@ -136,13 +136,14 @@ const SalesParser = (function () {
     let currentKey = null;
     let currentGroup = null;
     let currentTerr = null;
+    let pendingTerr = null;
 
     for (let raw of lines) {
       const line = raw.replace(/\r/g, '');
       const trimmed = line.trim();
       if (!trimmed) continue;
 
-      // Detect "Group:    XXXX    Terr Id:    YYYY"
+      // Format 1: "Group:    XXXX    Terr Id:    YYYY" (same line, old format)
       const gm = trimmed.match(/^Group:\s*(.+?)\s+Terr Id:\s*(\S+)/i);
       if (gm) {
         currentGroup = gm[1].trim();
@@ -154,8 +155,24 @@ const SalesParser = (function () {
         continue;
       }
 
+      // Format 2: "Terr Id : XXXX" on one line, "Group : YYYY" on next line (new format)
+      const tm = trimmed.match(/^Terr Id\s*:\s*(\S+)/i);
+      if (tm) { pendingTerr = tm[1].trim(); continue; }
+      const gm2 = trimmed.match(/^Group\s*:\s*(.+)/i);
+      if (gm2 && pendingTerr) {
+        currentGroup = gm2[1].trim();
+        currentTerr = pendingTerr;
+        pendingTerr = null;
+        currentKey = currentGroup + '|||' + currentTerr;
+        if (!sections[currentKey]) {
+          sections[currentKey] = { group: currentGroup, terrId: currentTerr, items: [] };
+        }
+        continue;
+      }
+
       // Skip header / footer / noise lines
       if (/^Code\s+Brand Name/i.test(trimmed)) continue;
+      if (/^P Code\s+Brand Name/i.test(trimmed)) continue;
       if (/^Territory Wise Sale/i.test(trimmed)) continue;
       if (/^Page\s+\d+/i.test(trimmed)) continue;
       if (/^Total\s*:/i.test(trimmed)) continue;

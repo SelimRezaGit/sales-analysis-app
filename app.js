@@ -198,6 +198,8 @@ function populateGroupSelect() {
   // trigger territory population for first group
   populateTerrSelect(groupSelect.value);
   generateBtn.disabled = false;
+  // Also sync to search tab
+  syncPdfToSearchTab();
 }
 
 function populateTerrSelect(group) {
@@ -776,3 +778,271 @@ function filterTable(q){
 </body>
 </html>`;
 }
+
+// ===========================================================================
+// TAB NAVIGATION
+// ===========================================================================
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById(btn.dataset.tab).classList.add('active');
+    // Sync PDF state to search tab when switching
+    if (btn.dataset.tab === 'searchTab') syncPdfToSearchTab();
+  });
+});
+
+// ===========================================================================
+// PRODUCT SEARCH TAB
+// ===========================================================================
+const psGroupSelect   = $('psGroupSelect');
+const psTerrSelect    = $('psTerrSelect');
+const psProductInput  = $('psProductInput');
+const psAddProductBtn = $('psAddProductBtn');
+const psProductTags   = $('psProductTags');
+const psSearchBtn     = $('psSearchBtn');
+const psClearBtn      = $('psClearBtn');
+const psStatus        = $('psStatus');
+const psResults       = $('psResults');
+const psFileStatus    = $('psFileStatus');
+
+let psProducts = []; // list of product search terms
+
+// Sync parsed PDF data to search tab selects
+function syncPdfToSearchTab() {
+  if (!parsedSections || !groupTerrMap) {
+    psFileStatus.textContent = 'Full Report tab এ প্রথমে PDF লোড করুন।';
+    psFileStatus.className = 'status';
+    return;
+  }
+  psFileStatus.textContent = '✓ PDF লোড হয়েছে — Group ও Territory select করুন।';
+  psFileStatus.className = 'status ok';
+
+  // Populate group select
+  psGroupSelect.innerHTML = '';
+  groupTerrMap.groups.forEach(g => {
+    const opt = document.createElement('option');
+    opt.value = g; opt.textContent = g;
+    psGroupSelect.appendChild(opt);
+  });
+  psGroupSelect.disabled = false;
+  psSyncTerrSelect(psGroupSelect.value);
+
+  psProductInput.disabled = false;
+  psAddProductBtn.disabled = false;
+  psSearchBtn.disabled = false;
+}
+
+function psSyncTerrSelect(group) {
+  psTerrSelect.innerHTML = '';
+  (groupTerrMap.byGroup[group] || []).forEach(t => {
+    const opt = document.createElement('option');
+    opt.value = t; opt.textContent = t;
+    psTerrSelect.appendChild(opt);
+  });
+  psTerrSelect.disabled = false;
+}
+
+psGroupSelect.addEventListener('change', () => psSyncTerrSelect(psGroupSelect.value));
+
+// Also auto-sync when PDF is loaded (user may already be on search tab)
+const _origPopulateGroupSelect = populateGroupSelect;
+
+// Add product tags
+function addProduct(name) {
+  const n = name.trim().toUpperCase();
+  if (!n || psProducts.includes(n)) return;
+  psProducts.push(n);
+  renderProductTags();
+}
+
+function renderProductTags() {
+  psProductTags.innerHTML = '';
+  psProducts.forEach((p, i) => {
+    const tag = document.createElement('span');
+    tag.className = 'product-tag';
+    tag.innerHTML = `${escapeHtml(p)} <button data-i="${i}" title="Remove">×</button>`;
+    tag.querySelector('button').addEventListener('click', () => {
+      psProducts.splice(i, 1);
+      renderProductTags();
+    });
+    psProductTags.appendChild(tag);
+  });
+}
+
+psAddProductBtn.addEventListener('click', () => {
+  const val = psProductInput.value;
+  // Support comma-separated input
+  val.split(',').forEach(v => addProduct(v));
+  psProductInput.value = '';
+  psProductInput.focus();
+});
+
+psProductInput.addEventListener('keydown', e => {
+  if (e.key === 'Enter' || e.key === ',') {
+    e.preventDefault();
+    const val = psProductInput.value.replace(/,$/, '');
+    if (val.trim()) addProduct(val);
+    psProductInput.value = '';
+  }
+});
+
+psClearBtn.addEventListener('click', () => {
+  psProducts = [];
+  renderProductTags();
+  psResults.innerHTML = '';
+  psProductInput.value = '';
+  setStatus(psStatus, '', '');
+});
+
+// Search
+psSearchBtn.addEventListener('click', () => {
+  if (!parsedSections) {
+    setStatus(psStatus, 'Full Report tab এ PDF লোড করুন।', 'error');
+    return;
+  }
+  if (psProducts.length === 0) {
+    setStatus(psStatus, 'অন্তত একটি product name add করুন।', 'error');
+    return;
+  }
+
+  const group  = psGroupSelect.value;
+  const terr   = psTerrSelect.value;
+  const key    = group + '|||' + terr;
+  const sec    = parsedSections[key];
+  const excludeZero   = $('psExcludeZero').checked;
+  const partialMatch  = $('psShowAllVariants').checked;
+
+  if (!sec) {
+    setStatus(psStatus, 'এই Group/Territory এর জন্য কোনো ডাটা নেই।', 'error');
+    return;
+  }
+
+  // Find matching items per product
+  const results = psProducts.map((prod, idx) => {
+    const items = sec.items.filter(it => {
+      const name = it.name.toUpperCase();
+      return partialMatch ? name.includes(prod) : name.startsWith(prod);
+    }).filter(it => {
+      if (!excludeZero) return true;
+      return !(it.tgtBox===0 && it.soldBox===0 && it.intBox===0 &&
+               it.tgtVal===0 && it.soldVal===0 && it.intVal===0);
+    });
+    const color = GROUP_COLORS[idx % GROUP_COLORS.length];
+    const sub = items.reduce((s, it) => {
+      s.tgtBox += it.tgtBox; s.soldBox += it.soldBox; s.intBox += it.intBox;
+      s.tgtVal += it.tgtVal; s.soldVal += it.soldVal; s.intVal += it.intVal;
+      s.total  += it.soldVal + it.intVal;
+      return s;
+    }, { tgtBox:0, soldBox:0, intBox:0, tgtVal:0, soldVal:0, intVal:0, total:0 });
+    return { prod, items, color, sub };
+  });
+
+  const found = results.filter(r => r.items.length > 0);
+  const notFound = results.filter(r => r.items.length === 0).map(r => r.prod);
+
+  if (found.length === 0) {
+    setStatus(psStatus, `"${psProducts.join(', ')}" — কোনো product পাওয়া যায়নি।`, 'error');
+    psResults.innerHTML = '';
+    return;
+  }
+
+  setStatus(psStatus,
+    `✓ ${found.reduce((s,r)=>s+r.items.length,0)} টি variant পাওয়া গেছে।` +
+    (notFound.length ? ` (পাওয়া যায়নি: ${notFound.join(', ')})` : ''),
+    'ok'
+  );
+
+  renderSearchResults(found, { group, terr });
+});
+
+function renderSearchResults(results, meta) {
+  // Grand totals
+  const grand = results.reduce((g, r) => {
+    g.tgtBox += r.sub.tgtBox; g.soldBox += r.sub.soldBox; g.intBox += r.sub.intBox;
+    g.tgtVal += r.sub.tgtVal; g.soldVal += r.sub.soldVal; g.intVal += r.sub.intVal;
+    g.total  += r.sub.total;
+    return g;
+  }, { tgtBox:0, soldBox:0, intBox:0, tgtVal:0, soldVal:0, intVal:0, total:0 });
+
+  const rowsHtml = [];
+  results.forEach(r => {
+    if (!r.items.length) return;
+    rowsHtml.push(`<tr class="section-header" style="background:${r.color.sub}"><td colspan="8" style="color:${r.color.text}">${escapeHtml(r.prod)}</td></tr>`);
+    r.items.forEach(it => {
+      const tot = it.soldVal + it.intVal;
+      rowsHtml.push(`<tr style="background:${r.color.bg}">
+        <td>${escapeHtml(it.name)}</td>
+        <td>${fmt(it.tgtBox)}</td><td>${fmt(it.soldBox)}</td><td>${fmt(it.intBox)}</td>
+        <td>${fmt(it.tgtVal)}</td><td>${fmt(it.soldVal)}</td><td>${fmt(it.intVal)}</td>
+        <td>${fmt(tot)}</td></tr>`);
+    });
+    const s = r.sub;
+    rowsHtml.push(`<tr class="subtotal" style="background:${r.color.sub}">
+      <td style="color:${r.color.text}">Subtotal — ${escapeHtml(r.prod)}</td>
+      <td style="color:${r.color.text}">${fmt(s.tgtBox)}</td>
+      <td style="color:${r.color.text}">${fmt(s.soldBox)}</td>
+      <td style="color:${r.color.text}">${fmt(s.intBox)}</td>
+      <td style="color:${r.color.text}">${fmt(s.tgtVal)}</td>
+      <td style="color:${r.color.text}">${fmt(s.soldVal)}</td>
+      <td style="color:${r.color.text}">${fmt(s.intVal)}</td>
+      <td style="color:${r.color.text}">${fmt(s.total)}</td></tr>`);
+  });
+
+  rowsHtml.push(`<tr class="grand-total">
+    <td>GRAND TOTAL — ${escapeHtml(meta.terr)} (${escapeHtml(meta.group)})</td>
+    <td>${fmt(grand.tgtBox)}</td><td>${fmt(grand.soldBox)}</td><td>${fmt(grand.intBox)}</td>
+    <td>৳${fmt(grand.tgtVal)}</td><td>৳${fmt(grand.soldVal)}</td><td>৳${fmt(grand.intVal)}</td>
+    <td>৳${fmt(grand.total)}</td></tr>`);
+
+  psResults.innerHTML = `
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px;">
+      <button class="btn" id="psDownloadBtn">⬇ HTML ডাউনলোড</button>
+      <button class="btn btn-secondary" id="psPrintBtn">🖨 Print / PDF</button>
+    </div>
+    <div class="report-wrap">
+      <div class="report-header">
+        <h2>Product Search — ${escapeHtml(meta.group)} | ${escapeHtml(meta.terr)}</h2>
+        <p>Products: ${escapeHtml(results.map(r=>r.prod).join(', '))} · Total = Sold Value + Int Value</p>
+      </div>
+      <div class="table-scroll">
+        <table class="report-table">
+          <thead><tr>
+            <th>Brand Name</th><th>Tgt Box</th><th>Sold Box</th><th>Int Box</th>
+            <th>Tgt Value (৳)</th><th>Sold Value (৳)</th><th>Int Value (৳)</th><th>Total (৳)</th>
+          </tr></thead>
+          <tbody>${rowsHtml.join('')}</tbody>
+        </table>
+      </div>
+    </div>`;
+
+  $('psDownloadBtn').addEventListener('click', () => {
+    const html = buildStandaloneHtml({
+      meta,
+      groups: results.filter(r=>r.items.length).map(r => ({
+        name: r.prod, color: r.color,
+        items: r.items.map(it => ({...it, total: it.soldVal+it.intVal})),
+        subtotal: r.sub
+      })),
+      grand
+    });
+    const blob = new Blob([html], { type: 'text/html' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href = url;
+    a.download = `${meta.terr}_${results.map(r=>r.prod).join('_')}_Search.html`;
+    document.body.appendChild(a); a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  });
+
+  $('psPrintBtn').addEventListener('click', () => window.print());
+
+  psResults.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+// Auto-sync when PDF loads (hook into existing populateGroupSelect)
+const _origGenerateBtnListener = generateBtn.onclick;
+// After PDF loads, also update search tab if it's been visited
+const originalHandleFile = handleFile;
