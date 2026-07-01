@@ -1,5 +1,5 @@
 /* Service Worker — enables offline use */
-const CACHE = 'ipl-sales-v4';
+const CACHE = 'ipl-sales-v5';
 const ASSETS = [
   './',
   './index.html',

@@ -31,12 +31,19 @@ const SalesParser = (function () {
   const NUM_RE = /^-?[\d,]+(\.\d+)?$/;
 
   function isNumberToken(tok) {
+    // Also accept numbers with trailing dot (e.g. "1304999.")
+    if (/^-?[\d,]+\.$/. test(tok)) return true;
     return NUM_RE.test(tok);
+  }
+
+  function isAsteriskToken(tok) {
+    return /^\*+$/.test(tok);
   }
 
   function toNumber(tok) {
     if (tok === undefined || tok === null || tok === '') return 0;
-    return parseFloat(tok.replace(/,/g, '')) || 0;
+    // Remove trailing dot before parsing (e.g. "1304999.")
+    return parseFloat(tok.replace(/,/g, '').replace(/\.$/, '')) || 0;
   }
 
   // Parse the numeric tail into up to 7 numbers, left-aligned:
@@ -93,7 +100,12 @@ const SalesParser = (function () {
   // total is always derivable as soldVal+intVal anyway, so for our purposes
   // we mainly need tgtBox, soldBox, intBox, tgtVal, soldVal, intVal.
   function parseNumericTail(tail) {
-    const tokens = tail.trim().split(/\s+/).filter(t => t.length > 0 && isNumberToken(t));
+    const rawTokens = tail.trim().split(/\s+/).filter(t => t.length > 0);
+    let hasAsterisk = false;
+    const tokens = rawTokens.filter(t => {
+      if (isAsteriskToken(t)) { hasAsterisk = true; return false; }
+      return isNumberToken(t);
+    });
     const n = tokens.map(toNumber);
 
     let tgtBox = 0, soldBox = 0, intBox = 0, tgtVal = 0, soldVal = 0, intVal = 0, total = 0;
@@ -115,6 +127,22 @@ const SalesParser = (function () {
       [tgtBox, soldBox] = n;
     } else if (n.length === 1) {
       [tgtBox] = n;
+    }
+
+    // If asterisk was present, soldVal was overflowed/missing
+    // Derive it: soldVal = total - intVal (total is always printed correctly)
+    if (hasAsterisk) {
+      // When asterisk replaces soldVal, token layout shifts:
+      // [tgtBox, soldBox, intBox, tgtVal, intVal?, total] 
+      // Re-parse with that knowledge
+      if (n.length === 6) {
+        // [tgtBox, soldBox, intBox, tgtVal, intVal, total]
+        tgtBox=n[0]; soldBox=n[1]; intBox=n[2]; tgtVal=n[3]; intVal=n[4]; total=n[5];
+      } else if (n.length === 5) {
+        // [tgtBox, soldBox, intBox, tgtVal, total] - no intVal
+        tgtBox=n[0]; soldBox=n[1]; intBox=n[2]; tgtVal=n[3]; intVal=0; total=n[4];
+      }
+      soldVal = total - intVal;
     }
 
     return { tgtBox, soldBox, intBox, tgtVal, soldVal, intVal, total };
