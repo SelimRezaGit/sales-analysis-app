@@ -3,606 +3,533 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>IPL Sales Report Generator</title>
-  <link rel="manifest" href="manifest.json">
-  <meta name="theme-color" content="#1a1a2e">
-  <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="IPL Sales">
-  <link rel="apple-touch-icon" href="icon-192.png">
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<title>IPL Sales Report</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1a1a2e">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="IPL Sales">
+<link rel="apple-touch-icon" href="icon-192.png">
+
+<!-- Firebase Compat SDK -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<!-- PDF.js -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+
 <style>
-  :root{
-    --ink:#1a1a2e;
-    --paper:#f7f5f0;
-    --accent:#c0392b;
-    --accent-soft:#f3d9d5;
-    --line:#dcd8cf;
-    --muted:#8a8579;
-    --mono: 'IBM Plex Mono', monospace;
-    --serif: 'Source Serif 4', Georgia, serif;
-    --sans: 'Inter', Arial, sans-serif;
-  }
-  *{box-sizing:border-box;margin:0;padding:0;}
-  body{
-    font-family:var(--sans);
-    background:var(--paper);
-    color:var(--ink);
-    min-height:100vh;
-    padding:24px;
-  }
-  .shell{max-width:880px;margin:0 auto;}
-  .masthead{
-    border-bottom:3px solid var(--ink);
-    padding-bottom:14px;
-    margin-bottom:24px;
-    display:flex;
-    justify-content:space-between;
-    align-items:flex-end;
-    flex-wrap:wrap;
-    gap:10px;
-  }
-  .masthead h1{
-    font-family:var(--serif);
-    font-size:28px;
-    font-weight:600;
-    letter-spacing:-0.01em;
-  }
-  .masthead .tag{
-    font-family:var(--mono);
-    font-size:11px;
-    color:var(--muted);
-    text-transform:uppercase;
-    letter-spacing:0.08em;
-  }
+:root {
+  --ink: #1a1a2e; --paper: #f7f5f0; --accent: #c0392b;
+  --accent-soft: #f3d9d5; --line: #dcd8cf; --muted: #8a8579;
+  --green: #27ae60; --orange: #e67e22;
+  --sans: 'Inter', Arial, sans-serif; --mono: monospace;
+  --serif: Georgia, serif;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: var(--sans); background: var(--paper); color: var(--ink); min-height: 100vh; }
 
-  .card{
-    background:#fff;
-    border:1px solid var(--line);
-    border-radius:6px;
-    padding:20px;
-    margin-bottom:18px;
-  }
-  .card h2{
-    font-family:var(--serif);
-    font-size:15px;
-    font-weight:600;
-    margin-bottom:14px;
-    display:flex;
-    align-items:center;
-    gap:8px;
-  }
-  .step-num{
-    display:inline-flex;
-    align-items:center;
-    justify-content:center;
-    width:22px;height:22px;
-    background:var(--ink);
-    color:#fff;
-    border-radius:50%;
-    font-family:var(--mono);
-    font-size:11px;
-    flex-shrink:0;
-  }
+/* ── LOGIN SCREEN ── */
+#loginScreen {
+  min-height: 100vh; display: flex; align-items: center; justify-content: center;
+  background: linear-gradient(135deg, var(--ink) 0%, #2c3e6b 100%);
+  padding: 20px;
+}
+.login-box {
+  background: #fff; border-radius: 12px; padding: 36px 32px;
+  width: 100%; max-width: 380px; box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+}
+.login-logo { text-align: center; margin-bottom: 28px; }
+.login-logo h1 { font-family: var(--serif); font-size: 26px; color: var(--ink); }
+.login-logo p { font-size: 12px; color: var(--muted); margin-top: 4px; }
+.login-logo .logo-icon {
+  width: 64px; height: 64px; background: var(--ink); border-radius: 16px;
+  display: flex; align-items: center; justify-content: center;
+  margin: 0 auto 14px; font-size: 28px;
+}
+.form-field { margin-bottom: 16px; }
+.form-field label { display: block; font-size: 11px; text-transform: uppercase;
+  letter-spacing: 0.06em; color: var(--muted); margin-bottom: 6px; }
+.form-field input {
+  width: 100%; padding: 12px 14px; border: 1.5px solid var(--line);
+  border-radius: 6px; font-size: 15px; font-family: var(--sans);
+  transition: border-color .15s;
+}
+.form-field input:focus { outline: none; border-color: var(--ink); }
+.login-btn {
+  width: 100%; padding: 13px; background: var(--ink); color: #fff;
+  border: none; border-radius: 6px; font-size: 15px; font-weight: 600;
+  cursor: pointer; margin-top: 4px; transition: opacity .15s;
+}
+.login-btn:hover { opacity: 0.88; }
+.login-error { color: var(--accent); font-size: 12px; margin-top: 10px; text-align: center; min-height: 18px; }
 
-  /* file drop */
-  .dropzone{
-    border:1.5px dashed var(--line);
-    border-radius:6px;
-    padding:28px 16px;
-    text-align:center;
-    cursor:pointer;
-    transition:border-color .15s, background .15s;
-    font-size:13px;
-    color:var(--muted);
-  }
-  .dropzone.has-file{border-color:var(--accent);background:var(--accent-soft);color:var(--ink);}
-  .dropzone:hover{border-color:var(--ink);}
-  .dropzone input{display:none;}
-  .dropzone .fname{font-family:var(--mono);font-weight:600;margin-top:4px;}
+/* ── MAIN APP ── */
+#mainApp { display: none; }
+.topbar {
+  background: var(--ink); color: #fff; padding: 0 16px;
+  display: flex; align-items: center; gap: 12px; height: 52px;
+  position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+}
+.topbar-title { font-family: var(--serif); font-size: 16px; font-weight: 600; flex: 1; }
+.topbar-user { font-size: 12px; color: #ccc; font-family: var(--mono); }
+.topbar-badge {
+  background: var(--green); color: #fff; font-size: 10px; font-weight: 700;
+  padding: 2px 8px; border-radius: 10px; letter-spacing: 0.04em;
+}
+.topbar-badge.admin { background: var(--accent); }
+.logout-btn {
+  background: rgba(255,255,255,0.12); border: none; color: #fff;
+  padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px;
+}
 
-  /* selects */
-  .field-row{display:flex;gap:12px;flex-wrap:wrap;}
-  .field{flex:1;min-width:160px;}
-  .field label{
-    display:block;
-    font-size:11px;
-    text-transform:uppercase;
-    letter-spacing:0.06em;
-    color:var(--muted);
-    margin-bottom:6px;
-    font-family:var(--mono);
-  }
-  select, input[type=text]{
-    width:100%;
-    padding:10px 12px;
-    border:1px solid var(--line);
-    border-radius:4px;
-    font-size:13px;
-    font-family:var(--sans);
-    background:#fff;
-    color:var(--ink);
-  }
-  select:disabled{background:#f0eee8;color:var(--muted);}
-  select:focus, input:focus{outline:2px solid var(--ink);outline-offset:1px;}
+.shell { max-width: 900px; margin: 0 auto; padding: 18px 14px; }
 
-  /* buttons */
-  .btn{
-    display:inline-flex;
-    align-items:center;
-    gap:8px;
-    padding:11px 22px;
-    background:var(--ink);
-    color:#fff;
-    border:none;
-    border-radius:4px;
-    font-size:13px;
-    font-weight:600;
-    font-family:var(--sans);
-    cursor:pointer;
-    transition:opacity .15s, transform .1s;
-  }
-  .btn:hover{opacity:0.85;}
-  .btn:active{transform:scale(0.98);}
-  .btn:disabled{background:#cfcabf;cursor:not-allowed;}
-  .btn-secondary{background:#fff;color:var(--ink);border:1px solid var(--line);}
-  .btn-secondary:hover{border-color:var(--ink);opacity:1;}
-  .btn-small{padding:6px 12px;font-size:11px;}
-  .btn-danger{background:#fff;color:var(--accent);border:1px solid var(--accent-soft);}
+/* ── TABS ── */
+.tab-nav {
+  display: flex; border-bottom: 2.5px solid var(--ink); margin-bottom: 20px; gap: 0;
+}
+.tab-btn {
+  padding: 10px 18px; background: none; border: none;
+  font-family: var(--serif); font-size: 14px; font-weight: 600;
+  color: var(--muted); cursor: pointer;
+  border-bottom: 3px solid transparent; margin-bottom: -2.5px; transition: color .15s;
+}
+.tab-btn.active { color: var(--ink); border-bottom-color: var(--accent); }
+.tab-btn:hover { color: var(--ink); }
+.tab-panel { display: none; }
+.tab-panel.active { display: block; }
 
-  /* config / groups editor */
-  .config-toggle{
-    font-family:var(--mono);
-    font-size:11px;
-    color:var(--muted);
-    cursor:pointer;
-    text-decoration:underline;
-    text-decoration-style:dotted;
-    background:none;border:none;padding:0;
-  }
-  .config-body{display:none;margin-top:14px;border-top:1px solid var(--line);padding-top:14px;}
-  .config-body.open{display:block;}
-  .config-section{margin-bottom:16px;}
-  .config-section h3{font-size:12px;text-transform:uppercase;letter-spacing:0.06em;color:var(--muted);margin-bottom:8px;font-family:var(--mono);}
-  .chip-list{display:flex;flex-wrap:wrap;gap:6px;}
-  .chip{
-    display:inline-flex;align-items:center;gap:6px;
-    background:var(--paper);border:1px solid var(--line);
-    border-radius:14px;padding:4px 10px 4px 12px;
-    font-size:12px;font-family:var(--mono);
-  }
-  .chip button{
-    background:none;border:none;color:var(--muted);cursor:pointer;
-    font-size:14px;line-height:1;padding:0;
-  }
-  .chip button:hover{color:var(--accent);}
-  .add-row{display:flex;gap:8px;margin-top:8px;}
-  .add-row input{flex:1;}
-  .split-rule{
-    display:flex;align-items:center;gap:8px;
-    font-size:12px;background:var(--paper);
-    border:1px solid var(--line);border-radius:4px;
-    padding:8px 10px;margin-bottom:6px;
-  }
-  .split-rule .arrow{color:var(--muted);}
-  .split-rule code{font-family:var(--mono);background:#fff;padding:2px 6px;border-radius:3px;border:1px solid var(--line);}
+/* ── CARDS ── */
+.card {
+  background: #fff; border: 1px solid var(--line);
+  border-radius: 6px; padding: 18px; margin-bottom: 16px;
+}
+.card h2 {
+  font-family: var(--serif); font-size: 15px; font-weight: 600;
+  margin-bottom: 12px; display: flex; align-items: center; gap: 8px;
+}
+.step-num {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 22px; height: 22px; background: var(--ink); color: #fff;
+  border-radius: 50%; font-family: var(--mono); font-size: 11px; flex-shrink: 0;
+}
 
-  /* progress / status */
-  .status{
-    font-family:var(--mono);
-    font-size:12px;
-    color:var(--muted);
-    margin-top:12px;
-    min-height:18px;
-  }
-  .status.error{color:var(--accent);}
-  .status.ok{color:#1e7d4f;}
+/* ── FORM ELEMENTS ── */
+.field-row { display: flex; gap: 12px; flex-wrap: wrap; }
+.field { flex: 1; min-width: 140px; }
+.field label {
+  display: block; font-size: 11px; text-transform: uppercase;
+  letter-spacing: 0.06em; color: var(--muted); margin-bottom: 6px;
+}
+select, input[type=text] {
+  width: 100%; padding: 10px 12px; border: 1px solid var(--line);
+  border-radius: 4px; font-size: 13px; font-family: var(--sans);
+  background: #fff; color: var(--ink);
+}
+select:disabled { background: #f0eee8; color: var(--muted); }
+select:focus, input:focus { outline: 2px solid var(--ink); outline-offset: 1px; }
 
-  .progress-bar{
-    height:4px;background:var(--line);border-radius:2px;overflow:hidden;margin-top:10px;display:none;
-  }
-  .progress-bar.active{display:block;}
-  .progress-bar .fill{
-    height:100%;background:var(--ink);width:0%;
-    transition:width .2s;
-  }
+/* ── DROPZONE ── */
+.dropzone {
+  border: 1.5px dashed var(--line); border-radius: 6px;
+  padding: 24px 16px; text-align: center; cursor: pointer;
+  font-size: 13px; color: var(--muted); transition: border-color .15s;
+}
+.dropzone.has-file { border-color: var(--accent); background: var(--accent-soft); color: var(--ink); }
+.dropzone input { display: none; }
+.dropzone .fname { font-family: var(--mono); font-weight: 600; margin-top: 4px; font-size: 12px; }
 
-  /* preview output */
-  #reportContainer{display:none;}
-  #reportContainer.visible{display:block;}
+/* ── BUTTONS ── */
+.btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 11px 20px; background: var(--ink); color: #fff;
+  border: none; border-radius: 4px; font-size: 13px; font-weight: 600;
+  cursor: pointer; transition: opacity .15s;
+}
+.btn:hover { opacity: 0.85; }
+.btn:disabled { background: #cfcabf; cursor: not-allowed; }
+.btn-secondary { background: #fff; color: var(--ink); border: 1px solid var(--line); }
+.btn-secondary:hover { border-color: var(--ink); opacity: 1; }
+.btn-small { padding: 6px 12px; font-size: 11px; }
 
-  .actions-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px;}
+/* ── STATUS ── */
+.status { font-family: var(--mono); font-size: 12px; color: var(--muted); margin-top: 10px; min-height: 18px; }
+.status.error { color: var(--accent); }
+.status.ok { color: var(--green); }
+.progress-bar { height: 4px; background: var(--line); border-radius: 2px; overflow: hidden; margin-top: 10px; display: none; }
+.progress-bar.active { display: block; }
+.progress-bar .fill { height: 100%; background: var(--ink); width: 0%; transition: width .2s; }
 
-  /* report styles (injected) */
-  .report-wrap{
-    border:1px solid var(--line);border-radius:6px;overflow:hidden;
-  }
-  .report-header{background:var(--ink);color:#fff;padding:14px 18px;}
-  .report-header h2{font-family:var(--serif);font-size:16px;font-weight:600;margin-bottom:4px;}
-  .report-header p{font-size:11px;color:#cfcabf;font-family:var(--mono);}
-  .table-scroll{overflow-x:auto;max-height:600px;}
-  table.report-table{width:100%;border-collapse:collapse;font-size:12px;}
-  table.report-table thead th{
-    background:#2c2c2c;color:#fff;padding:8px 10px;text-align:right;
-    font-size:11px;white-space:nowrap;border:1px solid #444;
-    position:sticky;top:0;z-index:2;
-  }
-  table.report-table thead th:first-child{text-align:left;width:34%;}
-  table.report-table td{padding:5px 10px;border:0.5px solid #ddd;text-align:right;}
-  table.report-table td:first-child{text-align:left;}
-  .section-header td{font-weight:bold;font-size:11px;text-transform:uppercase;letter-spacing:0.05em;padding:6px 10px;}
-  .subtotal td{font-weight:bold;font-size:11.5px;border-top:1.5px solid rgba(0,0,0,0.2);}
-  .grand-total td{font-weight:bold;font-size:13px;background:var(--ink) !important;color:#fff !important;border-top:2px solid #000;padding:9px 10px;position:sticky;bottom:0;}
-  .zero-row td{color:#aaa;font-style:italic;}
+/* ── PRODUCT SEARCH TAG ── */
+.product-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.product-tag {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: var(--accent-soft); border: 1px solid var(--accent);
+  border-radius: 14px; padding: 4px 10px 4px 12px;
+  font-size: 12px; font-family: var(--mono); color: var(--accent);
+}
+.product-tag button { background: none; border: none; color: var(--accent); cursor: pointer; font-size: 15px; }
+.search-input-row { display: flex; gap: 8px; align-items: center; }
+.search-input-row input { flex: 1; }
 
-  .footer-note{
-    font-family:var(--mono);font-size:11px;color:var(--muted);
-    text-align:center;margin-top:24px;padding-top:16px;border-top:1px solid var(--line);
-  }
+/* ── REPORT TABLE ── */
+.report-wrap { border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+.report-header { background: var(--ink); color: #fff; padding: 12px 16px; }
+.report-header h2 { font-family: var(--serif); font-size: 15px; margin-bottom: 4px; }
+.report-header p { font-size: 11px; color: #cfcabf; font-family: var(--mono); }
+.table-scroll { overflow-x: auto; max-height: 550px; }
+table.report-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+table.report-table thead th {
+  background: #2c2c2c; color: #fff; padding: 8px 10px; text-align: right;
+  font-size: 11px; white-space: nowrap; border: 1px solid #444;
+  position: sticky; top: 0; z-index: 2;
+}
+table.report-table thead th:first-child { text-align: left; width: 34%; }
+table.report-table td { padding: 5px 10px; border: 0.5px solid #ddd; text-align: right; }
+table.report-table td:first-child { text-align: left; }
+.section-header td { font-weight: bold; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; padding: 6px 10px; }
+.subtotal td { font-weight: bold; font-size: 11.5px; border-top: 1.5px solid rgba(0,0,0,0.2); }
+.grand-total td { font-weight: bold; font-size: 13px; background: var(--ink) !important; color: #fff !important; border-top: 2px solid #000; padding: 9px 10px; position: sticky; bottom: 0; }
+.zero-row td { color: #aaa; font-style: italic; }
+.actions-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 12px; }
+.actions-row input { max-width: 240px; }
 
-  @media (max-width:600px){
-    .masthead h1{font-size:22px;}
-    body{padding:14px;}
-  }
+/* ── ADMIN PANEL ── */
+.admin-wrap { padding: 4px 0; }
+.admin-top {
+  display: flex; align-items: center; justify-content: space-between;
+  flex-wrap: wrap; gap: 10px; margin-bottom: 18px;
+}
+.admin-top h2 { font-family: var(--serif); font-size: 20px; }
+.admin-stats { display: flex; gap: 12px; flex-wrap: wrap; }
+.stat-chip {
+  padding: 6px 14px; border-radius: 20px; font-size: 12px; font-weight: 600;
+  font-family: var(--mono);
+}
+.stat-chip.green { background: #d5f5e3; color: #1a7a42; }
+.stat-chip.blue  { background: #d6eaf8; color: #1a5276; }
+.stat-chip.gray  { background: #f0f0f0; color: #555; }
+.admin-body { display: grid; grid-template-columns: 1.4fr 1fr; gap: 16px; }
+@media(max-width:700px){ .admin-body { grid-template-columns: 1fr; } }
+#adminMap { height: 340px; border-radius: 6px; overflow: hidden; border: 1px solid var(--line); }
+.map-note { font-size: 11px; color: var(--muted); margin-top: 6px; font-family: var(--mono); }
+.admin-section-title { font-size: 13px; font-weight: 600; margin-bottom: 10px; color: var(--ink); }
+.user-card {
+  padding: 10px 12px; border-radius: 6px; margin-bottom: 8px;
+  border: 1px solid var(--line); font-size: 12px;
+}
+.user-card.online { border-left: 3px solid var(--green); }
+.user-card.offline { border-left: 3px solid var(--line); opacity: 0.7; }
+.user-info { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+.user-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--line); flex-shrink: 0; }
+.user-dot.online { background: var(--green); }
+.user-info strong { font-size: 13px; }
+.user-info code { font-size: 10px; color: var(--muted); background: var(--paper); padding: 1px 5px; border-radius: 3px; }
+.user-meta { font-size: 11px; color: var(--muted); margin-top: 2px; font-family: var(--mono); }
+.offline-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; margin: 10px 0 6px; }
+.activity-item {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 8px 0; border-bottom: 0.5px solid var(--line); font-size: 12px;
+}
+.activity-item:last-child { border-bottom: none; }
+.act-icon { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+.act-body { flex: 1; }
+.act-body strong { display: block; font-size: 12px; }
+.act-type { font-size: 11px; color: var(--muted); text-transform: capitalize; }
+.act-detail { font-size: 11px; color: var(--ink); font-family: var(--mono); display: block; margin-top: 2px; }
+.act-time { font-size: 10px; color: var(--muted); white-space: nowrap; font-family: var(--mono); }
+.no-data { font-size: 12px; color: var(--muted); text-align: center; padding: 20px; }
+.activity-scroll { max-height: 320px; overflow-y: auto; }
+.users-scroll { max-height: 200px; overflow-y: auto; }
+.admin-refresh { font-size: 11px; color: var(--muted); font-family: var(--mono); }
 
+/* ── CONFIG ── */
+.config-toggle { font-family: var(--mono); font-size: 11px; color: var(--muted); cursor: pointer; text-decoration: underline dotted; background: none; border: none; padding: 0; }
+.config-body { display: none; margin-top: 14px; border-top: 1px solid var(--line); padding-top: 14px; }
+.config-body.open { display: block; }
+.chip-list { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { display: inline-flex; align-items: center; gap: 6px; background: var(--paper); border: 1px solid var(--line); border-radius: 14px; padding: 4px 10px 4px 12px; font-size: 12px; font-family: var(--mono); }
+.chip button { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 14px; }
+.add-row { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+.add-row input { flex: 1; min-width: 0; }
+.split-rule { display: flex; align-items: center; gap: 8px; font-size: 12px; background: var(--paper); border: 1px solid var(--line); border-radius: 4px; padding: 8px 10px; margin-bottom: 6px; flex-wrap: wrap; }
+.split-rule code { font-family: var(--mono); background: #fff; padding: 2px 6px; border-radius: 3px; border: 1px solid var(--line); }
+.config-section { margin-bottom: 16px; }
+.config-section h3 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin-bottom: 8px; font-family: var(--mono); }
 
-  /* ===== TAB NAVIGATION ===== */
-  .tab-nav {
-    display: flex;
-    border-bottom: 2.5px solid var(--ink);
-    margin-bottom: 22px;
-    gap: 0;
-  }
-  .tab-btn {
-    padding: 10px 22px;
-    background: none;
-    border: none;
-    font-family: var(--serif);
-    font-size: 14px;
-    font-weight: 600;
-    color: var(--muted);
-    cursor: pointer;
-    border-bottom: 3px solid transparent;
-    margin-bottom: -2.5px;
-    transition: color .15s;
-    letter-spacing: -0.01em;
-  }
-  .tab-btn.active {
-    color: var(--ink);
-    border-bottom-color: var(--accent);
-  }
-  .tab-btn:hover { color: var(--ink); }
-  .tab-panel { display: none; }
-  .tab-panel.active { display: block; }
-
-  /* ===== PRODUCT SEARCH TAB ===== */
-  .search-grid { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
-  .search-grid .field { flex: 1; min-width: 140px; }
-  .product-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
-  .product-tag {
-    display: inline-flex; align-items: center; gap: 6px;
-    background: var(--accent-soft); border: 1px solid var(--accent);
-    border-radius: 14px; padding: 4px 10px 4px 12px;
-    font-size: 12px; font-family: var(--mono); color: var(--accent);
-  }
-  .product-tag button { background: none; border: none; color: var(--accent); cursor: pointer; font-size: 15px; line-height: 1; padding: 0; }
-  .search-input-row { display: flex; gap: 8px; align-items: center; }
-  .search-input-row input { flex: 1; }
-  #psStatus { margin-top: 10px; }
-  #psResults { margin-top: 16px; }
-  .no-results { text-align: center; padding: 32px; color: var(--muted); font-family: var(--mono); font-size: 13px; }
-
-  /* ===== MOBILE RESPONSIVE ===== */
-  @media (max-width: 640px) {
-    body { padding: 10px; font-size: 11px; }
-    .masthead h1 { font-size: 18px; }
-    .card { padding: 14px; }
-    .field-row { flex-direction: column; }
-    .field { min-width: unset; }
-    select, input[type=text] { font-size: 16px; } /* prevent zoom on iOS */
-    .btn { padding: 13px 18px; font-size: 14px; width: 100%; justify-content: center; }
-    .actions-row { flex-direction: column; align-items: stretch; }
-    .actions-row input { max-width: 100% !important; }
-    table.report-table { font-size: 10px; }
-    table.report-table thead th,
-    table.report-table td { padding: 4px 6px; }
-    .report-header h2 { font-size: 13px; }
-    .step-num { width: 20px; height: 20px; font-size: 10px; }
-    .card h2 { font-size: 13px; }
-    .add-row { flex-wrap: wrap; }
-    .add-row input { min-width: 0; }
-  }
-
-  /* Install banner */
-  #installBanner {
-    display: none;
-    position: fixed;
-    bottom: 0; left: 0; right: 0;
-    background: var(--ink);
-    color: #fff;
-    padding: 14px 16px;
-    z-index: 999;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    box-shadow: 0 -2px 12px rgba(0,0,0,0.3);
-  }
-  #installBanner.hidden { display: none !important; }
-  #installBanner p { flex: 1; font-size: 13px; margin: 0; }
-  #installBanner p span { display: block; font-size: 11px; color: #ccc; margin-top: 2px; }
-  #installBtn { padding: 9px 18px; background: var(--accent); color: #fff; border: none; border-radius: 4px; font-weight: 600; cursor: pointer; white-space: nowrap; font-size: 13px; }
-  #dismissInstall { background: none; border: none; color: #aaa; cursor: pointer; font-size: 20px; padding: 0 4px; }
-
-
+/* ── PRINT ── */
 @media print {
-  * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; color-adjust: exact !important; }
-  body { background: #fff !important; padding: 0 !important; margin: 0 !important; }
-  .toolbar, .print-btn, #searchBox, #clearBtn, #matchCount, .download-btn { display: none !important; }
-  .container { box-shadow: none !important; padding: 8px !important; max-width: 100% !important; }
-  table { width: 100% !important; border-collapse: collapse !important; table-layout: auto !important; }
+  * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+  body { background: #fff !important; }
+  .topbar, .tab-nav, .card:not(.print-keep), .actions-row, #loginScreen { display: none !important; }
+  .table-scroll { overflow: visible !important; max-height: none !important; }
+  .report-wrap { border: none !important; }
   thead { display: table-header-group !important; }
-  tbody { display: table-row-group !important; }
   tr { page-break-inside: avoid !important; break-inside: avoid !important; }
-  .section-header { page-break-after: avoid !important; break-after: avoid !important; }
-  .subtotal { page-break-before: avoid !important; break-before: avoid !important; }
-  .grand-total { page-break-before: avoid !important; break-before: avoid !important; }
-  td, th { overflow-wrap: break-word !important; word-break: break-word !important; font-size: 9pt !important; padding: 3px 5px !important; }
-  th { font-size: 8pt !important; }
-  .section-header td { font-size: 8pt !important; }
-  .table-scroll { overflow: visible !important; max-height: none !important; height: auto !important; }
-  .report-wrap { border: none !important; overflow: visible !important; }
-  .report-header { padding: 8px 12px !important; }
-  .report-header h2 { font-size: 12pt !important; }
-  .report-header p { font-size: 8pt !important; }
+  .grand-total { position: static !important; }
   @page { margin: 8mm; size: A4 landscape; }
 }
 
+/* ── MOBILE ── */
+@media(max-width: 640px){
+  body { font-size: 11px; }
+  .shell { padding: 10px; }
+  .tab-btn { padding: 8px 12px; font-size: 13px; }
+  .btn { padding: 12px 16px; font-size: 13px; }
+  select, input[type=text] { font-size: 16px; }
+  .field-row { flex-direction: column; }
+  .actions-row { flex-direction: column; align-items: stretch; }
+  .actions-row input { max-width: 100% !important; }
+  .login-box { padding: 24px 18px; }
+}
+
+/* Install banner */
+#installBanner {
+  display: none; position: fixed; bottom: 0; left: 0; right: 0;
+  background: var(--ink); color: #fff; padding: 14px 16px; z-index: 999;
+  align-items: center; gap: 12px; box-shadow: 0 -2px 12px rgba(0,0,0,0.3);
+}
+#installBanner.show { display: flex; }
+#installBtn { padding: 9px 18px; background: var(--accent); color: #fff; border: none; border-radius: 4px; font-weight: 600; cursor: pointer; font-size: 13px; white-space: nowrap; }
+#installBanner p { flex: 1; font-size: 13px; margin: 0; }
+#installBanner p span { display: block; font-size: 11px; color: #ccc; margin-top: 2px; }
+#dismissInstall { background: none; border: none; color: #aaa; cursor: pointer; font-size: 22px; }
 </style>
 </head>
 <body>
-<div class="shell">
 
-  <div class="masthead">
-    <div>
-      <h1>IPL Sales Report Generator</h1>
-      <div class="tag">Territory Wise Sale &middot; Qty &amp; Value</div>
+<!-- ═══════════════ LOGIN SCREEN ═══════════════ -->
+<div id="loginScreen">
+  <div class="login-box">
+    <div class="login-logo">
+      <div class="logo-icon">💊</div>
+      <h1>IPL Sales</h1>
+      <p>Territory Wise Sale Report</p>
     </div>
-    <div class="tag" id="dateTag"></div>
+    <div class="form-field">
+      <label>Employee ID</label>
+      <input type="text" id="loginEmpId" placeholder="যেমন: EMP001" autocomplete="off" autocapitalize="characters">
+    </div>
+    <div class="form-field">
+      <label>আপনার নাম</label>
+      <input type="text" id="loginName" placeholder="আপনার পুরো নাম">
+    </div>
+    <button class="login-btn" id="loginBtn">Login করুন →</button>
+    <div class="login-error" id="loginError"></div>
   </div>
-
-  <!-- TAB NAVIGATION -->
-  <div class="tab-nav">
-    <button class="tab-btn active" data-tab="reportTab">📊 Full Report</button>
-    <button class="tab-btn" data-tab="searchTab">🔍 Product Search</button>
-  </div>
-
-  <!-- TAB 1: FULL REPORT -->
-  <div class="tab-panel active" id="reportTab">
-
-  <!-- STEP 1: Upload -->
-  <div class="card">
-    <h2><span class="step-num">1</span> Upload PDF report</h2>
-    <label class="dropzone" id="dropzone">
-      <input type="file" id="fileInput" accept="application/pdf">
-      <div id="dropzoneText">PDF file টা এখানে drop করুন বা ক্লিক করে select করুন</div>
-      <div class="fname" id="fname"></div>
-    </label>
-    <div class="status" id="parseStatus"></div>
-    <div class="progress-bar" id="progressBar"><div class="fill" id="progressFill"></div></div>
-  </div>
-
-  <!-- STEP 2: Select Group & Territory -->
-  <div class="card">
-    <h2><span class="step-num">2</span> Group ও Territory নির্বাচন করুন</h2>
-    <div class="field-row">
-      <div class="field">
-        <label for="groupSelect">Group</label>
-        <select id="groupSelect" disabled><option value="">PDF লোড করুন প্রথমে</option></select>
-      </div>
-      <div class="field">
-        <label for="terrSelect">Territory ID</label>
-        <select id="terrSelect" disabled><option value="">—</option></select>
-      </div>
-    </div>
-  </div>
-
-  <!-- STEP 3: Group config -->
-  <div class="card">
-    <h2><span class="step-num">3</span> Grouping rules</h2>
-    <button class="config-toggle" id="configToggle">কাস্টম গ্রুপিং rules দেখুন / পরিবর্তন করুন</button>
-    <div class="config-body" id="configBody">
-
-      <div class="config-section">
-        <h3>সবসময় আলাদা group (Force-separate brand prefixes)</h3>
-        <div class="chip-list" id="separateChips"></div>
-        <div class="add-row">
-          <input type="text" id="separateInput" placeholder="যেমন: GLYMIRA 500">
-          <button class="btn btn-small btn-secondary" id="addSeparateBtn">+ Add</button>
-        </div>
-      </div>
-
-      <div class="config-section">
-        <h3>একসাথে মার্জ করার rules (Merge groups)</h3>
-        <div id="mergeRules"></div>
-        <div class="add-row">
-          <input type="text" id="mergeFromInput" placeholder="এই brand prefix (যেমন: LINATAB M)">
-          <span class="arrow">→</span>
-          <input type="text" id="mergeIntoInput" placeholder="এই group এ যাবে (যেমন: LINATAB)">
-          <button class="btn btn-small btn-secondary" id="addMergeBtn">+ Add</button>
-        </div>
-      </div>
-
-      <div class="config-section">
-        <h3>Options</h3>
-        <label style="display:flex;align-items:center;gap:8px;font-size:12px;cursor:pointer;">
-          <input type="checkbox" id="excludeZero" style="width:auto;">
-          Zero-value items বাদ দিন (Tgt = Sold = Int = 0)
-        </label>
-      </div>
-
-      <div class="add-row">
-        <button class="btn btn-small btn-secondary" id="resetConfigBtn">Reset to default rules</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- STEP 4: Generate -->
-  <div class="card">
-    <h2><span class="step-num">4</span> রিপোর্ট তৈরি করুন</h2>
-    <button class="btn" id="generateBtn" disabled>Done — Report তৈরি করুন</button>
-    <div class="status" id="genStatus"></div>
-  </div>
-
-  <!-- REPORT OUTPUT -->
-  <div id="reportContainer">
-    <div class="actions-row">
-      <button class="btn" id="downloadBtn">⬇ HTML ডাউনলোড করুন</button>
-      <button class="btn btn-secondary" id="printBtn">🖨 Print / Save as PDF</button>
-      <input type="text" id="searchBox" placeholder="🔍 Product সার্চ করুন..." style="max-width:260px;">
-      <button class="btn btn-secondary btn-small" id="clearSearchBtn">✕ Clear</button>
-      <span class="status" id="matchCount" style="margin:0;"></span>
-    </div>
-    <div class="report-wrap">
-      <div class="report-header">
-        <h2 id="reportTitle">—</h2>
-        <p id="reportSubtitle">—</p>
-      </div>
-      <div class="table-scroll">
-        <table class="report-table">
-          <thead>
-            <tr>
-              <th>Brand Name</th>
-              <th>Tgt Box</th>
-              <th>Sold Box</th>
-              <th>Int Box</th>
-              <th>Tgt Value (৳)</th>
-              <th>Sold Value (৳)</th>
-              <th>Int Value (৳)</th>
-              <th>Total (৳)</th>
-            </tr>
-          </thead>
-          <tbody id="reportBody"></tbody>
-        </table>
-      </div>
-    </div>
-  </div>
-
-  </div><!-- /reportTab -->
-
-  <!-- TAB 2: PRODUCT SEARCH -->
-  <div class="tab-panel" id="searchTab">
-    <div class="card">
-      <h2><span class="step-num">1</span> PDF আপলোড করুন</h2>
-      <p style="font-size:12px;color:var(--muted);margin-bottom:10px;">Full Report tab এ PDF আগে লোড করা থাকলে এখানে automatically available হবে।</p>
-      <div id="psFileStatus" class="status">Full Report tab এ প্রথমে PDF লোড করুন।</div>
-    </div>
-
-    <div class="card">
-      <h2><span class="step-num">2</span> Group ও Territory নির্বাচন করুন</h2>
-      <div class="search-grid">
-        <div class="field">
-          <label for="psGroupSelect">Group</label>
-          <select id="psGroupSelect" disabled><option value="">PDF লোড করুন প্রথমে</option></select>
-        </div>
-        <div class="field">
-          <label for="psTerrSelect">Territory ID</label>
-          <select id="psTerrSelect" disabled><option value="">—</option></select>
-        </div>
-      </div>
-    </div>
-
-    <div class="card">
-      <h2><span class="step-num">3</span> Product নাম লিখুন</h2>
-      <div class="search-input-row">
-        <input type="text" id="psProductInput" placeholder="যেমন: Lopirel, Maxsulin, Menaril..." disabled>
-        <button class="btn btn-secondary btn-small" id="psAddProductBtn" disabled>+ Add</button>
-      </div>
-      <div class="product-tags" id="psProductTags"></div>
-      <p style="font-size:11px;color:var(--muted);margin-top:8px;font-family:var(--mono);">একাধিক product add করতে পারবেন। প্রতিটা আলাদা color এ দেখাবে।</p>
-
-      <div style="margin-top:12px;">
-        <label style="display:flex;align-items:center;gap:8px;font-size:12px;cursor:pointer;">
-          <input type="checkbox" id="psExcludeZero" style="width:auto;" checked>
-          Zero-value items বাদ দিন
-        </label>
-        <label style="display:flex;align-items:center;gap:8px;font-size:12px;cursor:pointer;margin-top:6px;">
-          <input type="checkbox" id="psShowAllVariants" style="width:auto;" checked>
-          সব variants দেখাও (partial match)
-        </label>
-      </div>
-    </div>
-
-    <div class="card">
-      <h2><span class="step-num">4</span> Search করুন</h2>
-      <div style="display:flex;gap:10px;flex-wrap:wrap;">
-        <button class="btn" id="psSearchBtn" disabled>🔍 Search করুন</button>
-        <button class="btn btn-secondary" id="psClearBtn">✕ Reset</button>
-      </div>
-      <div class="status" id="psStatus"></div>
-    </div>
-
-    <!-- Search Results -->
-    <div id="psResults"></div>
-  </div><!-- /searchTab -->
-
-  <div class="footer-note">সব processing আপনার browser-এ হয় — কোনো ডাটা আপলোড হয় না।</div>
 </div>
 
+<!-- ═══════════════ MAIN APP ═══════════════ -->
+<div id="mainApp">
+  <!-- Top Bar -->
+  <div class="topbar">
+    <div class="topbar-title">💊 IPL Sales</div>
+    <div class="topbar-user" id="topbarUser"></div>
+    <span class="topbar-badge" id="topbarBadge">ONLINE</span>
+    <button class="logout-btn" id="logoutBtn">Logout</button>
+  </div>
+
+  <div class="shell">
+    <!-- TAB NAV -->
+    <div class="tab-nav" id="tabNav">
+      <button class="tab-btn active" data-tab="reportTab">📊 Full Report</button>
+      <button class="tab-btn" data-tab="searchTab">🔍 Product Search</button>
+      <button class="tab-btn" data-tab="adminTab" id="adminTabBtn" style="display:none">👑 Admin</button>
+    </div>
+
+    <!-- ═══ TAB 1: FULL REPORT ═══ -->
+    <div class="tab-panel active" id="reportTab">
+      <div class="card">
+        <h2><span class="step-num">1</span> PDF আপলোড করুন</h2>
+        <label class="dropzone" id="dropzone">
+          <input type="file" id="fileInput" accept="application/pdf">
+          <div id="dropzoneText">PDF file এখানে drop করুন বা ক্লিক করুন</div>
+          <div class="fname" id="fname"></div>
+        </label>
+        <div class="status" id="parseStatus"></div>
+        <div class="progress-bar" id="progressBar"><div class="fill" id="progressFill"></div></div>
+      </div>
+
+      <div class="card">
+        <h2><span class="step-num">2</span> Group ও Territory নির্বাচন করুন</h2>
+        <div class="field-row">
+          <div class="field"><label>Group</label>
+            <select id="groupSelect" disabled><option>PDF লোড করুন প্রথমে</option></select></div>
+          <div class="field"><label>Territory ID</label>
+            <select id="terrSelect" disabled><option>—</option></select></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2><span class="step-num">3</span> Grouping Rules</h2>
+        <button class="config-toggle" id="configToggle">কাস্টম গ্রুপিং rules দেখুন / পরিবর্তন করুন</button>
+        <div class="config-body" id="configBody">
+          <div class="config-section">
+            <h3>সবসময় আলাদা group</h3>
+            <div class="chip-list" id="separateChips"></div>
+            <div class="add-row">
+              <input type="text" id="separateInput" placeholder="যেমন: GLYMIRA 500">
+              <button class="btn btn-small btn-secondary" id="addSeparateBtn">+ Add</button>
+            </div>
+          </div>
+          <div class="config-section">
+            <h3>Merge rules</h3>
+            <div id="mergeRules"></div>
+            <div class="add-row">
+              <input type="text" id="mergeFromInput" placeholder="এই brand (LINATAB M)">
+              <span style="color:var(--muted)">→</span>
+              <input type="text" id="mergeIntoInput" placeholder="এই group এ (LINATAB)">
+              <button class="btn btn-small btn-secondary" id="addMergeBtn">+ Add</button>
+            </div>
+          </div>
+          <div class="config-section">
+            <label style="display:flex;align-items:center;gap:8px;font-size:12px;cursor:pointer;">
+              <input type="checkbox" id="excludeZero" style="width:auto;">
+              Zero-value items বাদ দিন
+            </label>
+          </div>
+          <button class="btn btn-small btn-secondary" id="resetConfigBtn">Reset to default</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2><span class="step-num">4</span> Report তৈরি করুন</h2>
+        <button class="btn" id="generateBtn" disabled>Done — Report তৈরি করুন</button>
+        <div class="status" id="genStatus"></div>
+      </div>
+
+      <div id="reportContainer" style="display:none">
+        <div class="actions-row">
+          <button class="btn" id="downloadBtn">⬇ HTML Download</button>
+          <button class="btn btn-secondary" id="printBtn">🖨 Print / PDF</button>
+          <input type="text" id="searchBox" placeholder="🔍 Product সার্চ...">
+          <button class="btn btn-secondary btn-small" id="clearSearchBtn">✕</button>
+          <span class="status" id="matchCount" style="margin:0"></span>
+        </div>
+        <div class="report-wrap">
+          <div class="report-header">
+            <h2 id="reportTitle">—</h2>
+            <p id="reportSubtitle">—</p>
+          </div>
+          <div class="table-scroll">
+            <table class="report-table">
+              <thead><tr>
+                <th>Brand Name</th><th>Tgt Box</th><th>Sold Box</th><th>Int Box</th>
+                <th>Tgt Value (৳)</th><th>Sold Value (৳)</th><th>Int Value (৳)</th><th>Total (৳)</th>
+              </tr></thead>
+              <tbody id="reportBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ TAB 2: PRODUCT SEARCH ═══ -->
+    <div class="tab-panel" id="searchTab">
+      <div class="card">
+        <h2><span class="step-num">1</span> PDF Status</h2>
+        <div class="status" id="psFileStatus">Full Report tab এ প্রথমে PDF লোড করুন।</div>
+      </div>
+      <div class="card">
+        <h2><span class="step-num">2</span> Group ও Territory</h2>
+        <div class="field-row">
+          <div class="field"><label>Group</label>
+            <select id="psGroupSelect" disabled><option>—</option></select></div>
+          <div class="field"><label>Territory ID</label>
+            <select id="psTerrSelect" disabled><option>—</option></select></div>
+        </div>
+      </div>
+      <div class="card">
+        <h2><span class="step-num">3</span> Product নাম</h2>
+        <div class="search-input-row">
+          <input type="text" id="psProductInput" placeholder="যেমন: Lopirel, Maxsulin..." disabled>
+          <button class="btn btn-secondary btn-small" id="psAddBtn" disabled>+ Add</button>
+        </div>
+        <div class="product-tags" id="psProductTags"></div>
+        <p style="font-size:11px;color:var(--muted);margin-top:8px;font-family:var(--mono)">Enter বা comma দিয়ে আলাদা করুন</p>
+        <label style="display:flex;align-items:center;gap:8px;font-size:12px;cursor:pointer;margin-top:10px;">
+          <input type="checkbox" id="psExcludeZero" style="width:auto;" checked>
+          Zero-value বাদ দিন
+        </label>
+      </div>
+      <div class="card">
+        <h2><span class="step-num">4</span> Search</h2>
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+          <button class="btn" id="psSearchBtn" disabled>🔍 Search করুন</button>
+          <button class="btn btn-secondary" id="psClearBtn">✕ Reset</button>
+        </div>
+        <div class="status" id="psStatus"></div>
+      </div>
+      <div id="psResults"></div>
+    </div>
+
+    <!-- ═══ TAB 3: ADMIN ═══ -->
+    <div class="tab-panel" id="adminTab">
+      <div class="admin-wrap">
+        <div class="admin-top">
+          <h2>👑 Admin Dashboard</h2>
+          <div class="admin-stats" id="adminStats"></div>
+        </div>
+        <div class="admin-body">
+          <div>
+            <div class="card">
+              <div class="admin-section-title">🗺 Live Location Map</div>
+              <div id="adminMap"></div>
+              <p class="map-note">📍 প্রতি ৬০ সেকেন্ডে আপডেট · Marker এ click করলে নাম দেখাবে</p>
+            </div>
+          </div>
+          <div>
+            <div class="card">
+              <div class="admin-section-title">👥 Users</div>
+              <div class="users-scroll" id="onlineUsers"><p class="no-data">Loading...</p></div>
+            </div>
+            <div class="card" style="margin-top:14px">
+              <div class="admin-section-title">📋 Recent Activity</div>
+              <div class="activity-scroll" id="activityFeed"><p class="no-data">Loading...</p></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /shell -->
+</div><!-- /mainApp -->
 
 <!-- PWA Install Banner -->
-<div id="installBanner" class="hidden">
-  <p>
-    IPL Sales App
-    <span>Home Screen এ install করুন — offline কাজ করবে</span>
-  </p>
+<div id="installBanner">
+  <p>IPL Sales App<span>Home Screen এ install করুন</span></p>
   <button id="installBtn">📲 Install</button>
-  <button id="dismissInstall" title="Close">×</button>
+  <button id="dismissInstall">×</button>
 </div>
 
+<script src="firebase-config.js"></script>
 <script src="parser.js"></script>
 <script src="config.js"></script>
+<script src="tracker.js"></script>
 <script src="app.js"></script>
-
 <script>
-// Register Service Worker
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./sw.js')
-      .then(reg => console.log('SW registered:', reg.scope))
-      .catch(err => console.warn('SW failed:', err));
-  });
+// PWA Service Worker
+if('serviceWorker' in navigator){
+  window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(()=>{}));
 }
-
-// PWA Install prompt
+// Install prompt
 let deferredPrompt;
-const banner = document.getElementById('installBanner');
-const installBtn = document.getElementById('installBtn');
-const dismissBtn = document.getElementById('dismissInstall');
-
-window.addEventListener('beforeinstallprompt', (e) => {
-  e.preventDefault();
-  deferredPrompt = e;
-  banner.classList.remove('hidden');
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault(); deferredPrompt = e;
+  document.getElementById('installBanner').classList.add('show');
 });
-
-installBtn.addEventListener('click', async () => {
-  if (!deferredPrompt) return;
+document.getElementById('installBtn').addEventListener('click', async () => {
+  if(!deferredPrompt) return;
   deferredPrompt.prompt();
-  const { outcome } = await deferredPrompt.userChoice;
+  const {outcome} = await deferredPrompt.userChoice;
   deferredPrompt = null;
-  banner.classList.add('hidden');
+  document.getElementById('installBanner').classList.remove('show');
 });
-
-dismissBtn.addEventListener('click', () => {
-  banner.classList.add('hidden');
-});
-
-window.addEventListener('appinstalled', () => {
-  banner.classList.add('hidden');
-  deferredPrompt = null;
-});
+document.getElementById('dismissInstall').addEventListener('click', () =>
+  document.getElementById('installBanner').classList.remove('show'));
+window.addEventListener('appinstalled', () =>
+  document.getElementById('installBanner').classList.remove('show'));
 </script>
-
 </body>
 </html>

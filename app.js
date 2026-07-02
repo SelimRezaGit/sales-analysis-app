@@ -28,6 +28,96 @@ const GROUP_COLORS = [
   { bg: '#ffe6f0', sub: '#ff66aa', text: '#660033' }
 ];
 
+
+// ===========================================================================
+// LOGIN
+// ===========================================================================
+(async function bootApp() {
+  await initFirebase();
+
+  // Check saved session
+  const saved = localStorage.getItem('ipl_user');
+  if (saved) {
+    try {
+      const u = JSON.parse(saved);
+      currentUser = u;
+      showMainApp(u);
+      // Re-init firebase tracking
+      await db ? Promise.resolve() : initFirebase();
+      if (db) {
+        await db.collection('users').doc(u.empId).update({
+          status: 'online',
+          lastSeen: firebase.firestore.FieldValue.serverTimestamp()
+        }).catch(() => {});
+        startLocationTracking();
+      }
+      return;
+    } catch(e) { localStorage.removeItem('ipl_user'); }
+  }
+
+  // Show login
+  document.getElementById('loginScreen').style.display = 'flex';
+})();
+
+document.getElementById('loginBtn').addEventListener('click', async () => {
+  const empId = document.getElementById('loginEmpId').value.trim();
+  const name  = document.getElementById('loginName').value.trim();
+  const errEl = document.getElementById('loginError');
+  errEl.textContent = '';
+
+  if (!empId) { errEl.textContent = 'Employee ID দিন।'; return; }
+  if (!name)  { errEl.textContent = 'আপনার নাম দিন।'; return; }
+
+  document.getElementById('loginBtn').textContent = 'Loading...';
+  document.getElementById('loginBtn').disabled = true;
+
+  try {
+    const user = await loginUser(empId, name);
+    showMainApp(user);
+  } catch(e) {
+    errEl.textContent = 'Login failed: ' + e.message;
+    document.getElementById('loginBtn').textContent = 'Login করুন →';
+    document.getElementById('loginBtn').disabled = false;
+  }
+});
+
+// Enter key on login
+['loginEmpId','loginName'].forEach(id => {
+  document.getElementById(id).addEventListener('keydown', e => {
+    if (e.key === 'Enter') document.getElementById('loginBtn').click();
+  });
+});
+
+function showMainApp(user) {
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('mainApp').style.display = 'block';
+  document.getElementById('topbarUser').textContent = user.name + ' (' + user.empId + ')';
+  if (user.isAdmin) {
+    document.getElementById('topbarBadge').textContent = 'ADMIN';
+    document.getElementById('topbarBadge').classList.add('admin');
+    document.getElementById('adminTabBtn').style.display = 'inline-block';
+  }
+}
+
+document.getElementById('logoutBtn').addEventListener('click', async () => {
+  if (!confirm('Logout করবেন?')) return;
+  await logoutUser();
+  location.reload();
+});
+
+// Admin tab init
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById(btn.dataset.tab).classList.add('active');
+    if (btn.dataset.tab === 'searchTab') syncPdfToSearchTab();
+    if (btn.dataset.tab === 'adminTab') initAdminPanel();
+  });
+});
+
+
 // ---- Global state ----
 let parsedSections = null;       // output of SalesParser.parse()
 let groupTerrMap = null;         // { groups: [...], byGroup: {group: [terrIds]} }
@@ -320,6 +410,7 @@ generateBtn.addEventListener('click', () => {
   setStatus(genStatus, 'রিপোর্ট তৈরি হচ্ছে...', '');
   currentReportData = buildReportData(sec, currentConfig);
   renderReport(currentReportData);
+  trackReportView(groupSelect.value, terrSelect.value);
   setStatus(genStatus, `✓ রিপোর্ট তৈরি হয়েছে — ${currentReportData.groups.length} টি group, ${currentReportData.totalItems} টি পণ্য।`, 'ok');
   reportContainer.classList.add('visible');
   reportContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -604,6 +695,7 @@ $('downloadBtn').addEventListener('click', () => {
   const blob = new Blob([html], { type: 'text/html' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
+  trackDownload(currentReportData.meta.group, currentReportData.meta.terrId, 'full_report');
   const safeGroup = currentReportData.meta.group.replace(/[^a-zA-Z0-9]/g, '');
   const safeTerr = currentReportData.meta.terrId.replace(/[^a-zA-Z0-9-]/g, '');
   a.href = url;
@@ -779,19 +871,7 @@ function filterTable(q){
 </html>`;
 }
 
-// ===========================================================================
-// TAB NAVIGATION
-// ===========================================================================
-document.querySelectorAll('.tab-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
-    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
-    btn.classList.add('active');
-    document.getElementById(btn.dataset.tab).classList.add('active');
-    // Sync PDF state to search tab when switching
-    if (btn.dataset.tab === 'searchTab') syncPdfToSearchTab();
-  });
-});
+// Tab navigation handled in login boot section above
 
 // ===========================================================================
 // PRODUCT SEARCH TAB
@@ -948,6 +1028,7 @@ psSearchBtn.addEventListener('click', () => {
     return;
   }
 
+  trackSearchView(psGroupSelect.value, psTerrSelect.value, psProducts.slice());
   setStatus(psStatus,
     `✓ ${found.reduce((s,r)=>s+r.items.length,0)} টি variant পাওয়া গেছে।` +
     (notFound.length ? ` (পাওয়া যায়নি: ${notFound.join(', ')})` : ''),
